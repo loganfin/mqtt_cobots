@@ -18,18 +18,13 @@ def on_message(client,userdata,msg):
     global coord
     sub = json.loads(msg.payload.decode())
     coord = sub
-    print("Message payload: ", coord)
-    print(type(coord))
+    #print("Message payload: ", coord)
+    #print(type(coord))
 
 client.on_message = on_message
 
 client.connect("localhost", 1883,60)
-client.subscribe("test/status")
-
-#if(coord!=[]):
-#    beaker.write_cartesian(coord)
-#    print("hello")
-#    beaker.start_robot()
+client.subscribe("beaker/status")
 
 try:
     print("Press CTRL+C to exit")
@@ -37,8 +32,8 @@ try:
         client.loop()
         if(coord!=[]):
             beaker.write_cartesian(coord)
-            print("hello")
             beaker.start_robot()
+
 except:
     print("Disconnecting from the broker")
 

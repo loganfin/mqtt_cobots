@@ -9,43 +9,21 @@ client = paho.Client()
 if(client.connect("localhost",1883,60)!=0):
     print("Could not connect to server")
 
-
-
 robot_IP = '172.29.208.124' #beaker
 
 beaker = robot(robot_IP)
 
-coord = [-700,35,-335,100,.779,-179]
+coord = [-114,-218,-26,6,19,-11]
 
 message = coord
 
-print(type(coord))
+#print(type(coord))
 
-#beaker.write_cartesian(coord)
-#jscon.dumps will create the message into json language which will be sent to the 
-#server and will then be read by the publisher then told to move.
 post = json.dumps(message)
-#beaker.start_robot()
+client.publish("beaker/status",post,0)
 
-client.publish("test/status",post,0)
-
-#beaker.write_cartesian_position(-650,-345,-75,100,.779,-179)
-#beaker.start_robot()
-
-coord = [-650,-345,-75,100,.779,-179]
+coord = [-387,333,537,-26,-35,63]
 message = coord
 post = json.dumps(message)
-client.publish("test/status",post,0)
-
-
-
-#beaker.schunk_gripper('open')
-#beaker.schunk_gripper('close')
-
-#beaker.schunk_gripper('open')
-#beaker.write_cartesian_position(-700,35,-335,100,.779,-179)
-
-
-#beaker.write_cartesian_position(-750,150,-925,8,22,139)
-#beaker.start_robot()
+client.publish("beaker/status",post,0)
 
