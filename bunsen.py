@@ -24,7 +24,8 @@ queues = {
 }
 
 
-server_ip = "localhost"
+# server_ip = "172.29.208.16"  # mauricio mosquitto
+server_ip = "localhost" # local mosquitto
 server_port = 1883
 bunsen_ip = "172.29.208.123"
 
@@ -124,7 +125,7 @@ def start_program(client, robot):
     # Pick up block
     pick_up_block(client, robot)
 
-    for i in range(3):
+    for _ in range(3):
         # First, move robot to a random position
         move_robot(client, robot)
 
@@ -132,9 +133,11 @@ def start_program(client, robot):
         events["command"].wait()
         beaker_command = queues["command"].get()
 
-        if beaker_command == "open":
+        if beaker_command == ["open"]:
             robot.schunk_gripper("open")
-            client.publish("Bunsen/gripper_status", "open")
+            client.publish("Bunsen/gripper_status", json.dumps(["open"]))
+        else:
+            print("Error, unknown command: {}".format(beaker_command))
 
         events["command"].clear()
 
@@ -163,13 +166,13 @@ def start_program(client, robot):
         events["position"].clear()
 
         # Tell Beaker to release the die
-        client.publish("Bunsen/command", "open")
+        client.publish("Bunsen/command", json.dumps(["open"]))
 
         # Fourth, wait for acknowledgement from Beaker
         events["status"].wait()
         beaker_gripper_status = queues["status"].get()
 
-        if beaker_gripper_status != "open":
+        if beaker_gripper_status != ["open"]:
             # Break out of the loop
             break
 
@@ -178,6 +181,8 @@ def start_program(client, robot):
 
     # Replace block
     put_block_back(client, robot)
+
+    client.loop_stop()
 
 
 def on_connect(client, user_data, flags, rc):
@@ -188,16 +193,15 @@ def on_connect(client, user_data, flags, rc):
 
 # This will run in the network thread
 def on_message(client, user_data, msg):
-    message = msg.payload.decode("utf-8")
+    message = json.loads(msg.payload.decode("utf-8"))
     # print("Received: {}".format(message))
     if "gripper_status" in msg.topic:
         # print("gripper_status: {}".format(message))
         queues["status"].put(message)
         events["status"].set()
     elif "position" in msg.topic:
-        json_msg = json.loads(message)
         # print("position: {}".format(json_msg))
-        queues["position"].put(json_msg)
+        queues["position"].put(message)
         events["position"].set()
     elif "command" in msg.topic:
         # print("command: {}".format(message))

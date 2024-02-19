@@ -28,10 +28,10 @@ def on_message(client, user_data, msg):
     global bunsen_command
 
     # print(msg.topic + " " + str(json_msg))
-    #print(type(msg.payload.decode("utf-8")))
+    # print(type(msg.payload.decode("utf-8")))
 
     if "gripper_status" in msg.topic:
-        #print("gripper_status: {}".format(msg.payload.decode("utf-8")))
+        # print("gripper_status: {}".format(msg.payload.decode("utf-8")))
         bunsen_gripper_status = msg.payload.decode("utf-8")
         flags[STATUS_UPDATE] = True
     elif "position" in msg.topic:
@@ -71,11 +71,13 @@ for i in range(3):
     # Move to die position
     input("Press enter to send 'command: open'")
     flags[POSITION_UPDATE] = False
-    client.publish("Beaker/command", "open")
+    client.publish("Beaker/command", json.dumps(["open"]))
 
     # Move to new position
     input("Press enter to send 'position: []'")
-    client.publish("Beaker/position", json.dumps([580, -580, 200, -90, 60, -179]))
+    client.publish(
+        "Beaker/position", json.dumps([580, -580, 200, -90, 60, -179])
+    )
 
     # Second, wait for Bunsen to ask us to release the die
     while flags[COMMAND_UPDATE] == False:
@@ -83,7 +85,7 @@ for i in range(3):
 
     input("Press enter to send 'gripper_status: open'")
     flags[COMMAND_UPDATE] = False
-    client.publish("Beaker/gripper_status", "open")
+    client.publish("Beaker/gripper_status", json.dumps(["open"]))
 
 client.loop_stop()
 
