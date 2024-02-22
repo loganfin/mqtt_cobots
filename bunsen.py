@@ -24,8 +24,8 @@ queues = {
 }
 
 
-# server_ip = "172.29.208.16"  # mauricio mosquitto
-server_ip = "localhost" # local mosquitto
+server_ip = "172.29.208.16"  # mauricio mosquitto
+# server_ip = "localhost" # local mosquitto
 server_port = 1883
 bunsen_ip = "172.29.208.123"
 
@@ -34,6 +34,8 @@ p = [
     [580, -580, 200, -90, 60, -179],  # Basis for randomly generated position
     [522, 6, -194, -179.9, 0, 30],  # initial die position
 ]
+
+cartesian_offset = [-55, -1450, 0]
 
 
 def test_robot_range(client, robot, rng):
@@ -70,9 +72,9 @@ def test_robot_range(client, robot, rng):
 def move_robot(client, robot):
     # print("Moving robot")
 
-    new_x = random.uniform(-200, 200)
-    new_y = random.uniform(-200, 200)
-    new_z = random.uniform(-200, 200)
+    new_x = random.uniform(-150, 150)
+    new_y = random.uniform(-150, 150)
+    new_z = random.uniform(-100, 100)
 
     new_pos = p[1].copy()
     new_pos[0] += new_x
@@ -85,6 +87,7 @@ def move_robot(client, robot):
 
     robot.write_cartesian_list(new_pos)
 
+    print(new_pos)
     client.publish(
         "Bunsen/position", json.dumps(robot.read_current_cartesian_pose())
     )
@@ -133,9 +136,14 @@ def start_program(client, robot):
         events["command"].wait()
         beaker_command = queues["command"].get()
 
-        if beaker_command == ["open"]:
+        if beaker_command == ["open"] or beaker_command == "open":
             robot.schunk_gripper("open")
-            client.publish("Bunsen/gripper_status", json.dumps(["open"]))
+            # Move the robot arm back to give Beaker room
+            temp_pos = robot.read_current_cartesian_pose()
+            temp_pos[1] += 200
+            robot.write_cartesian_list(temp_pos)
+
+            client.publish("Bunsen/status", json.dumps("open"))
         else:
             print("Error, unknown command: {}".format(beaker_command))
 
@@ -146,33 +154,43 @@ def start_program(client, robot):
         beaker_position = queues["position"].get()
 
         # Back up a little bit to give the some space
+        # beaker_position = beaker_position + cartesian_offset
+        #beaker_position[0] += cartesian_offset[0]
+        beaker_position[0] += cartesian_offset[0]
+        beaker_position[1] += cartesian_offset[1]
+        #beaker_position[2] += cartesian_offset[2]
+        beaker_position[3] = -90
+        beaker_position[4] = 60
+        beaker_position[5] = -179
         new_y = beaker_position[1]
         temp_pos = robot.read_current_cartesian_pose()
         temp_pos[1] = new_y + 200
+        print("moving back\n {}".format(temp_pos))
         robot.write_cartesian_list(temp_pos)
         # sleep(0.5)
 
         # Approach straight on
         temp_pos_2 = beaker_position.copy()
-        temp_pos_2[1] = new_y + 200
+        #temp_pos_2[1] = new_y - 200
+        print("approaching straight on\n {}".format(temp_pos_2))
         robot.write_cartesian_list(temp_pos_2)
         # sleep(0.5)
 
         # how do we transform this to be correct?
-        robot.write_cartesian_list(beaker_position)
+        #robot.write_cartesian_list(beaker_position)
         # Grab the block
         robot.schunk_gripper("close")
 
         events["position"].clear()
 
         # Tell Beaker to release the die
-        client.publish("Bunsen/command", json.dumps(["open"]))
+        client.publish("Bunsen/command", json.dumps("open"))
 
         # Fourth, wait for acknowledgement from Beaker
         events["status"].wait()
         beaker_gripper_status = queues["status"].get()
 
-        if beaker_gripper_status != ["open"]:
+        if beaker_gripper_status != "open":
             # Break out of the loop
             break
 
@@ -194,8 +212,8 @@ def on_connect(client, user_data, flags, rc):
 # This will run in the network thread
 def on_message(client, user_data, msg):
     message = json.loads(msg.payload.decode("utf-8"))
-    # print("Received: {}".format(message))
-    if "gripper_status" in msg.topic:
+    print("Received: {}".format(message))
+    if "status" in msg.topic:
         # print("gripper_status: {}".format(message))
         queues["status"].put(message)
         events["status"].set()
