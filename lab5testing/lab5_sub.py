@@ -18,8 +18,6 @@ def on_message(client,userdata,msg):
     global coord
     sub = json.loads(msg.payload.decode())
     coord = sub
-    #print("Message payload: ", coord)
-    #print(type(coord))
 
 client.on_message = on_message
 
@@ -33,7 +31,9 @@ try:
         if(coord!=[]):
             beaker.write_cartesian(coord)
             beaker.start_robot()
-
+            test = "move complete"
+            post = json.dumps(test)
+            client.publish("bunsen/status",post,0)
 except:
     print("Disconnecting from the broker")
 

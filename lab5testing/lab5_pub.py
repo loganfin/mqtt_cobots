@@ -5,6 +5,13 @@ import random
 sys.path.append(r"C:\Users\mauri\SchoolStuff\Spring Junior\CS453\Fanuc Python Driver\fanuc_ethernet_ip_drivers\src")
 from robot_controller import robot
 
+test = ""
+
+def on_message(client,userdata,msg):
+    global test
+    sub = json.loads(msg.payload.decode())
+    test = sub
+
 client = paho.Client()
 if(client.connect("localhost",1883,60)!=0):
     print("Could not connect to server")
@@ -22,8 +29,19 @@ message = coord
 post = json.dumps(message)
 client.publish("beaker/status",post,0)
 
-coord = [-387,333,537,-26,-35,63]
+#coord = [-387,333,537,-26,-35,63]
+coord = [50,-218,-26,6,19,-11]
 message = coord
 post = json.dumps(message)
 client.publish("beaker/status",post,0)
 
+client.subscribe("bunsen/status")
+client.on_message = on_message
+
+print("Press CTRL+C to exit")
+while True:
+    client.loop()
+    if(test=="move complete"):
+        print(test)
+
+client.disconnect()
