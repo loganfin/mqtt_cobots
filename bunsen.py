@@ -31,8 +31,8 @@ bunsen_ip = "172.29.208.123"
 
 p = [
     [522, 6, 96.417938, 179.9, 0, 30],  # start position
-    [580, -580, 200, -90, 60, -179],  # Basis for randomly generated position
-    [522, 6, -194, -179.9, 0, 30],  # initial die position
+    [580, -580, 200, -90, 60, 178],  # Basis for randomly generated position
+    [522, 6, -190, -179.9, 0, 30],  # initial die position
 ]
 
 cartesian_offset = [-55, -1450, 0]
@@ -101,18 +101,21 @@ def pick_up_block(client, robot):
 
     robot.schunk_gripper("close")
 
-    sleep(0.5)
+    sleep(0.2)
 
     robot.write_cartesian_list(p[0])
 
 
 def put_block_back(client, robot):
+    # Tell Beaker that Bunsen is done
+    client.publish("Bunsen/finished", "true")
+
     # Go to initial die position
     robot.write_cartesian_list(p[2])
 
     robot.schunk_gripper("open")
 
-    sleep(0.5)
+    sleep(0.2)
 
     robot.write_cartesian_list(p[0])
 
@@ -120,7 +123,7 @@ def put_block_back(client, robot):
 def start_program(client, robot):
     # Reset
     robot.write_cartesian_list(p[0])
-    sleep(0.5)
+    #sleep(0.5)
     robot.schunk_gripper("open")
 
     # test_robot_range(client, robot, 150)
@@ -143,6 +146,8 @@ def start_program(client, robot):
             temp_pos[1] += 200
             robot.write_cartesian_list(temp_pos)
 
+            sleep(0.2)
+
             client.publish("Bunsen/status", json.dumps("open"))
         else:
             print("Error, unknown command: {}".format(beaker_command))
@@ -153,33 +158,41 @@ def start_program(client, robot):
         events["position"].wait()
         beaker_position = queues["position"].get()
 
-        # Back up a little bit to give the some space
-        # beaker_position = beaker_position + cartesian_offset
-        #beaker_position[0] += cartesian_offset[0]
+        # Get the new position
         beaker_position[0] += cartesian_offset[0]
         beaker_position[1] += cartesian_offset[1]
         #beaker_position[2] += cartesian_offset[2]
         beaker_position[3] = -90
         beaker_position[4] = 60
-        beaker_position[5] = -179
-        new_y = beaker_position[1]
-        temp_pos = robot.read_current_cartesian_pose()
-        temp_pos[1] = new_y + 200
-        print("moving back\n {}".format(temp_pos))
-        robot.write_cartesian_list(temp_pos)
+        beaker_position[5] = 178
+
+        # Back up a little bit to give some space
+        # new_y = beaker_position[1]
+        # temp_pos = robot.read_current_cartesian_pose()
+        # temp_pos[1] = new_y + 200
+        # print("moving back\n {}".format(temp_pos))
+        # robot.write_cartesian_list(temp_pos)
         # sleep(0.5)
 
-        # Approach straight on
+        # Move to same X-Z position
         temp_pos_2 = beaker_position.copy()
-        #temp_pos_2[1] = new_y - 200
-        print("approaching straight on\n {}".format(temp_pos_2))
+        temp_pos = robot.read_current_cartesian_pose()
+        temp_pos_2[1] = temp_pos[1]
+        print("Moving to same X-Z position\n {}".format(temp_pos_2))
         robot.write_cartesian_list(temp_pos_2)
+
+        # Approach straight on
+        # temp_pos_2 = beaker_position.copy()
+        #temp_pos_2[1] = new_y - 200
+        print("approaching straight on\n {}".format(beaker_position))
+        robot.write_cartesian_list(beaker_position)
         # sleep(0.5)
 
         # how do we transform this to be correct?
         #robot.write_cartesian_list(beaker_position)
         # Grab the block
         robot.schunk_gripper("close")
+        sleep(0.2)
 
         events["position"].clear()
 
@@ -191,11 +204,16 @@ def start_program(client, robot):
         beaker_gripper_status = queues["status"].get()
 
         if beaker_gripper_status != "open":
-            # Break out of the loop
+            # Error, break out of the loop
             break
 
         # start next iteration
         events["status"].clear()
+        sleep(0.2)
+
+        temp_pos = robot.read_current_cartesian_pose()
+        temp_pos[1] += 300
+        robot.write_cartesian_list(temp_pos)
 
     # Replace block
     put_block_back(client, robot)
